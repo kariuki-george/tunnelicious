@@ -33,3 +33,6 @@ install-go-plugins:
 	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	@export PATH="$PATH:$(go env GOPATH)/bin"
 
+register-dns:
+	@echo 127.0.0.1 test1.tunnel.local >> /etc/hosts 
+	@echo 127.0.0.1 test2.tunnel.local>> /etc/hosts

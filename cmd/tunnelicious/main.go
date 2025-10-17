@@ -40,12 +40,30 @@ func main() {
 				Name:  "debug",
 				Usage: "Enable verbose debug logs",
 			},
+			&cli.StringFlag{
+				Name:    "controlplane",
+				Usage:   "Url to the controlplane",
+				Aliases: []string{"ctrlp"},
+				Value:   "localhost:20420",
+			},
+			&cli.StringFlag{
+				Name:  "proxy",
+				Usage: "Url to the proxy",
+				Value: "http://localhost:22420",
+			},
+			&cli.BoolFlag{
+				Name:  "insecure",
+				Usage: "Connect targets insecurely",
+				Value: false,
+			},
 		},
 
 		Action: func(_ context.Context, c *cli.Command) error {
 			target := c.String("target")
 			token := c.String("token")
-
+			controlplane := c.String("controlplane")
+			proxy := c.String("proxy")
+			insecure := c.Bool("insecure")
 			fmt.Println("🚀 Starting tunnelicious...")
 			fmt.Printf(" → Target:   %s\n", target)
 			fmt.Printf(" → Protocol: %s\n", "http/2")
@@ -54,7 +72,7 @@ func main() {
 				fmt.Println("Debug logging enabled.")
 			}
 
-			Run(token, target)
+			Run(token, target, controlplane, proxy, insecure)
 
 			return nil
 		},
@@ -64,12 +82,17 @@ func main() {
 		log.Fatal().Err(err).Msg("could run tunnelicious")
 	}
 }
-func Run(token, targetUrl string) {
+func Run(token, targetUrl, ctrlPlane, proxyUrl string, insecureTransport bool) {
 
 	ctx := context.Background()
 	// 1. register with control server
-
-	ctrlConn, err := grpc.NewClient("localhost:21420", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	var opts grpc.DialOption
+	if insecureTransport {
+		opts = grpc.WithTransportCredentials(insecure.NewCredentials())
+	} else {
+		opts = grpc.WithTransportCredentials(insecure.NewCredentials())
+	}
+	ctrlConn, err := grpc.NewClient(ctrlPlane, opts)
 	if err != nil {
 		log.Fatal().Err(err).Msg("ctrl dial failed")
 	}
@@ -81,17 +104,22 @@ func Run(token, targetUrl string) {
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("ctrl registration failed")
+
 	}
-	proxyUrl := "tunnel.local:23420"
-	fmt.Printf(" → Tunnel: http://%s.%s\n", reg.AssignedSubdomain, proxyUrl)
+	scheme, proxyHost := splitURL(proxyUrl)
+
+	proxyUrl = fmt.Sprintf("%s://%s.%s", scheme, reg.AssignedSubdomain, proxyHost)
+
+	fmt.Printf(" → Tunnel: %s\n", proxyUrl)
 	fmt.Println()
 	fmt.Println()
+
 	agentId := reg.AssignedSubdomain
 	log.Info().Msgf("registered ok=%v sub=%s", reg.Ok, reg.AssignedSubdomain)
 
 	// 2. Connet to proxy tunnel endpoint
 
-	pconn, err := grpc.NewClient("localhost:22420", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	pconn, err := grpc.NewClient(proxyHost, opts)
 	if err != nil {
 		log.Fatal().Err(err).Msg("proxy dial failed")
 	}
@@ -157,15 +185,7 @@ func Run(token, targetUrl string) {
 			log.Info().Msg(req.URL.String())
 			// url := path.Join(targetUrl, req.URL.String())
 
-			scheme := "http"
-			host := ""
-			parts := strings.Split(targetUrl, "://")
-			if len(parts) == 2 {
-				scheme = parts[0]
-				host = parts[1]
-			} else {
-				host = parts[0]
-			}
+			scheme, host := splitURL(targetUrl)
 
 			req.RequestURI = ""
 			req.URL.Scheme = scheme
@@ -188,4 +208,21 @@ func Run(token, targetUrl string) {
 			}
 		}(req)
 	}
+}
+
+func splitURL(url string) (scheme string, host string) {
+
+	parts := strings.Split(url, "://")
+
+	scheme = "http"
+	host = ""
+	if len(parts) == 1 {
+		host = parts[0]
+	} else {
+		scheme = parts[0]
+		host = parts[1]
+	}
+
+	return
+
 }

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"net"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -11,6 +11,8 @@ import (
 	"github.com/kariuki-george/tunnelicious/internal/control"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 )
 
@@ -25,34 +27,34 @@ func main() {
 
 	ctrl := control.NewController(db)
 
-	// start response api
-
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-
-		w.Write([]byte("ok\n"))
-	})
-
-	go func() {
-
-		log.Info().Msg("http server listening on port 20420")
-		http.ListenAndServe(":20420", r)
-
-	}()
-
 	// grpc control server
-
-	lis, err := net.Listen("tcp", ":21420")
-	if err != nil {
-		log.Fatal().Err(err).Msg("fauled to open grpc listener")
-	}
 
 	s := grpc.NewServer()
 	agent.RegisterControlServer(s, ctrl)
-	log.Info().Msg("grpc server listening on port 21420")
 
-	if err := s.Serve(lis); err != nil {
-		log.Fatal().Err(err).Msg("failed to serve grpc")
+	// start response api
+
+	chir := chi.NewRouter()
+	chir.Use(middleware.Logger)
+	chir.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok\n"))
+	})
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
+			s.ServeHTTP(w, r)
+		} else {
+			chir.ServeHTTP(w, r)
+
+		}
+	})
+
+	log.Info().Msg("control plane listening on port 20420")
+
+	h2cHandler := h2c.NewHandler(handler, &http2.Server{})
+	http.ListenAndServe(":20420", h2cHandler)
+	if err != nil {
+		log.Fatal().Msgf("Server failed to start: %v", err)
 	}
 }
