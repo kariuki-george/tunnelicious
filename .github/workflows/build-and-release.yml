@@ -29,7 +29,7 @@ jobs:
       - name: Build binary
         run: |
           mkdir -p dist
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/tunnelicious-${{ matrix.goos }}-${{ matrix.goarch }} ./agent
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags "-s -w" -o dist/tunnelicious-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/tunnelicious
 
       - name: Package artifacts
         run: |
@@ -63,4 +63,3 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

@@ -3,7 +3,7 @@ ctrlplane_dev:
 	@go run cmd/ctrlplane/main.go
 
 agent_dev:
-	@go run cmd/agent/main.go 
+	@go run cmd/tunnelicious/main.go 
 
 
 proxy_dev:
