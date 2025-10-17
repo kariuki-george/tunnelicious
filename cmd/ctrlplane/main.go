@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"strings"
 
@@ -39,6 +40,13 @@ func main() {
 	})
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Info().Msgf("Request: Proto=%d, Content-Type=%s, Path=%s",
+			r.ProtoMajor, r.Header.Get("Content-Type"), r.URL.Path)
+
+		buf := new(bytes.Buffer)
+		_ = r.Write(buf)
+
+		w.Write(buf.Bytes())
 
 		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
 			s.ServeHTTP(w, r)
