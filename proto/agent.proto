@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+option go_package = "proto/.;agent";
+
+message RegisterRequest{
+  string token = 1;
+  TunnelMode mode  = 2;
+}
+
+
+enum TunnelMode {
+  VERSION_UNSPECIFIED = 0;
+  HTTP2 = 1;
+  WS = 2;
+}
+
+message RegisterResponse{
+  bool ok = 1; 
+  string assigned_subdomain = 2;
+}
+
+message HeartbeatRequest {
+  string agent_id = 1;
+}
+
+message HeartbeatResponse{
+  bool ok = 1;
+}
+
+// Control service exposed by Server
+service Control {
+  rpc RegisterAgent (RegisterRequest) returns (RegisterResponse);
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+
+
+message StreamChunk {
+   string stream_id = 1; 
+   bytes payload = 2; // raw bytes 
+   bool fin = 3; // indicated EOF for the stream
+}
+
+
+
+
+message ConnectRequest {
+  string subdomain = 1; 
+  string token = 2;
+}
+
+message ConnectResponse{
+  bool ok = 1;
+}
+
+
+// Proxy service expose by Proxy
+service Proxy{
+  // Open a bidi stream: proxy <-> agent 
+  rpc Tunnel(stream StreamChunk) returns (stream StreamChunk);
+  rpc Connect(ConnectRequest) returns (ConnectResponse);
+  
+}
+
+message HeaderValues {
+  repeated string values = 1;
+}
+
+message HttpRequest {
+  string stream_id =1;
+  string method = 2 ;
+  string url = 3 ;
+  map<string, HeaderValues> headers = 4;
+  bytes body = 5;
+}
+
+
+message HttpResponse{
+  string stream_id = 1; 
+  int32 status_code = 2; 
+  map<string, HeaderValues> headers = 3; 
+  bytes body = 4;
+}

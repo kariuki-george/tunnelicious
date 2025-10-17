@@ -1,0 +1,66 @@
+name: Build and Release Agent
+
+on:
+  push:
+    tags:
+      - "v*.*.*" # e.g. v1.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+
+      - name: Build binary
+        run: |
+          mkdir -p dist
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/tunnelicious-${{ matrix.goos }}-${{ matrix.goarch }} ./agent
+
+      - name: Package artifacts
+        run: |
+          cd dist
+          for f in *; do
+            zip "$f.zip" "$f"
+          done
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: tunnelicious
+          path: dist/*.zip
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tunnelicious
+          path: dist
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
