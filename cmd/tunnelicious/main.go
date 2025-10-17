@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	agent "github.com/kariuki-george/tunnelicious/gen/proto"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/urfave/cli/v3"
@@ -86,13 +88,23 @@ func Run(token, targetUrl, ctrlPlane, proxyUrl string, insecureTransport bool) {
 
 	ctx := context.Background()
 	// 1. register with control server
-	var opts grpc.DialOption
+
+	var creds grpc.DialOption
+	var dialer grpc.DialOption
+
 	if insecureTransport {
-		opts = grpc.WithTransportCredentials(insecure.NewCredentials())
+		creds = grpc.WithTransportCredentials(insecure.NewCredentials())
 	} else {
-		opts = grpc.WithTransportCredentials(insecure.NewCredentials())
+		creds = grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, ""))
+		dialer = grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return (&net.Dialer{
+				Timeout:   10 * time.Second,
+				KeepAlive: 30 * time.Second,
+				// Restrict to IPv4 only
+			}).DialContext(ctx, "tcp4", addr)
+		})
 	}
-	ctrlConn, err := grpc.NewClient(ctrlPlane, opts)
+	ctrlConn, err := grpc.NewClient(ctrlPlane, creds, dialer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("ctrl dial failed")
 	}
@@ -119,7 +131,7 @@ func Run(token, targetUrl, ctrlPlane, proxyUrl string, insecureTransport bool) {
 
 	// 2. Connet to proxy tunnel endpoint
 
-	pconn, err := grpc.NewClient(proxyHost, opts)
+	pconn, err := grpc.NewClient(proxyHost, creds, dialer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("proxy dial failed")
 	}
