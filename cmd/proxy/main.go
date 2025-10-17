@@ -24,7 +24,8 @@ func main() {
 	mux.HandleFunc("/", proxy.ServeHTTP)
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
+		log.Printf("Request: Proto=%d, Content-Type=%s, Path=%s",
+			r.ProtoMajor, r.Header.Get("Content-Type"), r.URL.Path)
 		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
 			s.ServeHTTP(w, r)
 		} else {

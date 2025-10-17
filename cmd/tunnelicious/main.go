@@ -67,8 +67,10 @@ func main() {
 			proxy := c.String("proxy")
 			insecure := c.Bool("insecure")
 			fmt.Println("🚀 Starting tunnelicious...")
-			fmt.Printf(" → Target:   %s\n", target)
-			fmt.Printf(" → Protocol: %s\n", "http/2")
+			fmt.Printf(" → Target:         %s\n", target)
+			fmt.Printf(" → Proxy:          %s\n", proxy)
+			fmt.Printf(" → Control Plane:  %s\n", controlplane)
+			fmt.Printf(" → Protocol:       %s\n", "http/2")
 
 			if c.Bool("debug") {
 				fmt.Println("Debug logging enabled.")
@@ -122,7 +124,7 @@ func Run(token, targetUrl, ctrlPlane, proxyUrl string, insecureTransport bool) {
 
 	proxyUrl = fmt.Sprintf("%s://%s.%s", scheme, reg.AssignedSubdomain, proxyHost)
 
-	fmt.Printf(" → Tunnel: %s\n", proxyUrl)
+	fmt.Printf(" → Tunnel:          %s\n", proxyUrl)
 	fmt.Println()
 	fmt.Println()
 
