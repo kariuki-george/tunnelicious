@@ -71,6 +71,7 @@ func main() {
 			fmt.Printf(" → Proxy:          %s\n", proxy)
 			fmt.Printf(" → Control Plane:  %s\n", controlplane)
 			fmt.Printf(" → Protocol:       %s\n", "http/2")
+			fmt.Printf(" → Insecure:       %t\n", insecure)
 
 			if c.Bool("debug") {
 				fmt.Println("Debug logging enabled.")
@@ -92,19 +93,18 @@ func Run(token, targetUrl, ctrlPlane, proxyUrl string, insecureTransport bool) {
 	// 1. register with control server
 
 	var creds grpc.DialOption
-	var dialer grpc.DialOption
+	dialer := grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+		return (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+			// Restrict to IPv4 only
+		}).DialContext(ctx, "tcp4", addr)
+	})
 
 	if insecureTransport {
 		creds = grpc.WithTransportCredentials(insecure.NewCredentials())
 	} else {
 		creds = grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, ""))
-		dialer = grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-			return (&net.Dialer{
-				Timeout:   10 * time.Second,
-				KeepAlive: 30 * time.Second,
-				// Restrict to IPv4 only
-			}).DialContext(ctx, "tcp4", addr)
-		})
 	}
 	ctrlConn, err := grpc.NewClient(ctrlPlane, creds, dialer)
 	if err != nil {

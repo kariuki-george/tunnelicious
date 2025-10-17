@@ -11,8 +11,6 @@ import (
 	"github.com/kariuki-george/tunnelicious/internal/control"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 )
 
@@ -52,8 +50,8 @@ func main() {
 
 	log.Info().Msg("control plane listening on port 20420")
 
-	h2cHandler := h2c.NewHandler(handler, &http2.Server{})
-	http.ListenAndServe(":20420", h2cHandler)
+	// h2cHandler := h2c.NewHandler(handler, &http2.Server{})
+	http.ListenAndServe(":20420", handler)
 	if err != nil {
 		log.Fatal().Msgf("Server failed to start: %v", err)
 	}

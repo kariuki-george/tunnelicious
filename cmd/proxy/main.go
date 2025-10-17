@@ -7,8 +7,6 @@ import (
 	agent "github.com/kariuki-george/tunnelicious/gen/proto"
 	"github.com/kariuki-george/tunnelicious/internal/proxy"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 )
 
@@ -34,11 +32,11 @@ func main() {
 		}
 	})
 
-	h2cHandler := h2c.NewHandler(handler, &http2.Server{})
+	// h2cHandler := h2c.NewHandler(handler, &http2.Server{})
 
 	log.Info().Msg("proxy listening on :22420")
 
-	err := http.ListenAndServe(":22420", h2cHandler)
+	err := http.ListenAndServe(":22420", handler)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to serve proxy")
 	}
