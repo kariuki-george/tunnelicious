@@ -5,8 +5,11 @@ import (
 	"strings"
 
 	agent "github.com/kariuki-george/tunnelicious/gen/proto"
+	"github.com/kariuki-george/tunnelicious/internal/control"
 	"github.com/kariuki-george/tunnelicious/internal/proxy"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 )
 
@@ -15,9 +18,17 @@ func main() {
 
 	s := grpc.NewServer()
 	proxy := proxy.NewProxy()
+
+	ctrl := control.NewController(nil)
+
 	agent.RegisterProxyServer(s, proxy)
+	agent.RegisterControlServer(s, ctrl)
 
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok\n"))
+	})
 
 	mux.HandleFunc("/", proxy.ServeHTTP)
 
@@ -28,15 +39,14 @@ func main() {
 			s.ServeHTTP(w, r)
 		} else {
 			mux.ServeHTTP(w, r)
-
 		}
 	})
 
-	// h2cHandler := h2c.NewHandler(handler, &http2.Server{})
+	h2cHandler := h2c.NewHandler(handler, &http2.Server{})
 
-	log.Info().Msg("proxy listening on :22420")
+	log.Info().Msg("proxy listening on :20420")
 
-	err := http.ListenAndServe(":22420", handler)
+	err := http.ListenAndServe(":20420", h2cHandler)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to serve proxy")
 	}

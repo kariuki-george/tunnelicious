@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"net/http"
 	"strings"
 
@@ -12,6 +11,8 @@ import (
 	"github.com/kariuki-george/tunnelicious/internal/control"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 )
 
@@ -43,11 +44,6 @@ func main() {
 		log.Info().Msgf("Request: Proto=%d, Content-Type=%s, Path=%s",
 			r.ProtoMajor, r.Header.Get("Content-Type"), r.URL.Path)
 
-		buf := new(bytes.Buffer)
-		_ = r.Write(buf)
-
-		w.Write(buf.Bytes())
-
 		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
 			s.ServeHTTP(w, r)
 		} else {
@@ -58,8 +54,8 @@ func main() {
 
 	log.Info().Msg("control plane listening on port 20420")
 
-	// h2cHandler := h2c.NewHandler(handler, &http2.Server{})
-	http.ListenAndServe(":20420", handler)
+	h2cHandler := h2c.NewHandler(handler, &http2.Server{})
+	http.ListenAndServe(":20420", h2cHandler)
 	if err != nil {
 		log.Fatal().Msgf("Server failed to start: %v", err)
 	}

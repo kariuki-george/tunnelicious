@@ -36,3 +36,7 @@ install-go-plugins:
 register-dns:
 	@echo 127.0.0.1 test1.tunnel.local >> /etc/hosts 
 	@echo 127.0.0.1 test2.tunnel.local>> /etc/hosts
+
+deploy-proxy:
+	@flyctl deploy --config ./cmd/proxy/fly.toml . 
+

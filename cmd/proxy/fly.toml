@@ -1,0 +1,44 @@
+# fly.toml app configuration file generated for tunnelicious on 2025-10-18T12:55:01+03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'tunnelicious'
+primary_region = 'jnb'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+
+[[vm]]
+  size = 'shared-cpu-1x'
+
+[[services]]
+   protocol = "tcp"
+   internal_port = 20420
+   force_https = true
+   auto_stop_machines = 'stop'
+   auto_start_machines = true
+   min_machines_running = 0
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["http", "tls"]
+    
+    # Enable HTTP/2 backend
+    [services.ports.tls_options]
+      alpn = ["h2", "http/1.1"]
+    
+    # Add this for HTTP/2 support
+    [services.ports.http_options]
+      h2_backend = true
+
+
+
+
+

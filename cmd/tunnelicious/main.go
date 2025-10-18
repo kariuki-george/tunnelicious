@@ -43,15 +43,14 @@ func main() {
 				Usage: "Enable verbose debug logs",
 			},
 			&cli.StringFlag{
-				Name:    "controlplane",
-				Usage:   "Url to the controlplane",
-				Aliases: []string{"ctrlp"},
-				Value:   "localhost:20420",
-			},
-			&cli.StringFlag{
 				Name:  "proxy",
 				Usage: "Url to the proxy",
-				Value: "http://localhost:22420",
+				Value: "tunnel.kariukigeorge.me",
+			},
+			&cli.StringFlag{
+				Name:  "ctrl",
+				Usage: "Url to the proxy",
+				Value: "ctrl.tunnel.kariukigeorge.me",
 			},
 			&cli.BoolFlag{
 				Name:  "insecure",
@@ -63,7 +62,7 @@ func main() {
 		Action: func(_ context.Context, c *cli.Command) error {
 			target := c.String("target")
 			token := c.String("token")
-			controlplane := c.String("controlplane")
+			controlplane := c.String("ctrl")
 			proxy := c.String("proxy")
 			insecure := c.Bool("insecure")
 			fmt.Println("🚀 Starting tunnelicious...")
@@ -93,17 +92,19 @@ func Run(token, targetUrl, ctrlPlane, proxyUrl string, insecureTransport bool) {
 	// 1. register with control server
 
 	var creds grpc.DialOption
-	dialer := grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-		return (&net.Dialer{
-			Timeout:   10 * time.Second,
-			KeepAlive: 30 * time.Second,
-			// Restrict to IPv4 only
-		}).DialContext(ctx, "tcp4", addr)
-	})
+	var dialer grpc.DialOption
 
 	if insecureTransport {
 		creds = grpc.WithTransportCredentials(insecure.NewCredentials())
+		dialer = grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return (&net.Dialer{
+				Timeout:   10 * time.Second,
+				KeepAlive: 30 * time.Second,
+				// Restrict to IPv4 only
+			}).DialContext(ctx, "tcp4", addr)
+		})
 	} else {
+		dialer = grpc.EmptyDialOption{}
 		creds = grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, ""))
 	}
 	ctrlConn, err := grpc.NewClient(ctrlPlane, creds, dialer)
@@ -111,6 +112,7 @@ func Run(token, targetUrl, ctrlPlane, proxyUrl string, insecureTransport bool) {
 		log.Fatal().Err(err).Msg("ctrl dial failed")
 	}
 	defer ctrlConn.Close()
+
 	ctrl := agent.NewControlClient(ctrlConn)
 	reg, err := ctrl.RegisterAgent(ctx, &agent.RegisterRequest{
 		Token: token,
@@ -120,24 +122,23 @@ func Run(token, targetUrl, ctrlPlane, proxyUrl string, insecureTransport bool) {
 		log.Fatal().Err(err).Msg("ctrl registration failed")
 
 	}
-	scheme, proxyHost := splitURL(proxyUrl)
-
-	proxyUrl = fmt.Sprintf("%s://%s.%s", scheme, reg.AssignedSubdomain, proxyHost)
-
-	fmt.Printf(" → Tunnel:          %s\n", proxyUrl)
-	fmt.Println()
-	fmt.Println()
-
-	agentId := reg.AssignedSubdomain
-	log.Info().Msgf("registered ok=%v sub=%s", reg.Ok, reg.AssignedSubdomain)
 
 	// 2. Connet to proxy tunnel endpoint
+	_, proxyHost := splitURL(insecureTransport, proxyUrl)
+	proxyUrl = fmt.Sprintf("%s.%s", reg.AssignedSubdomain, proxyHost)
 
-	pconn, err := grpc.NewClient(proxyHost, creds, dialer)
+	fmt.Printf(" → Tunnel:        %s\n", proxyUrl)
+	fmt.Println()
+	fmt.Println()
+	proxyUrll := fmt.Sprintf("r.%s", proxyHost)
+	pconn, err := grpc.NewClient(proxyUrll, creds, dialer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("proxy dial failed")
 	}
 	defer pconn.Close()
+
+	agentId := reg.AssignedSubdomain
+	log.Info().Msgf("registered ok=%v sub=%s", reg.Ok, reg.AssignedSubdomain)
 
 	proxy := agent.NewProxyClient(pconn)
 
@@ -199,7 +200,7 @@ func Run(token, targetUrl, ctrlPlane, proxyUrl string, insecureTransport bool) {
 			log.Info().Msg(req.URL.String())
 			// url := path.Join(targetUrl, req.URL.String())
 
-			scheme, host := splitURL(targetUrl)
+			scheme, host := splitURL(strings.HasPrefix(targetUrl, "http://"), targetUrl)
 
 			req.RequestURI = ""
 			req.URL.Scheme = scheme
@@ -224,16 +225,18 @@ func Run(token, targetUrl, ctrlPlane, proxyUrl string, insecureTransport bool) {
 	}
 }
 
-func splitURL(url string) (scheme string, host string) {
+func splitURL(insecure bool, url string) (scheme string, host string) {
 
 	parts := strings.Split(url, "://")
 
-	scheme = "http"
+	scheme = "https"
+	if insecure {
+		scheme = "http"
+	}
 	host = ""
 	if len(parts) == 1 {
 		host = parts[0]
 	} else {
-		scheme = parts[0]
 		host = parts[1]
 	}
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	agent "github.com/kariuki-george/tunnelicious/gen/proto"
+	"github.com/lucsky/cuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -19,7 +20,7 @@ func NewController(db *sqlx.DB) *Controller {
 
 func (c *Controller) RegisterAgent(ctx context.Context, req *agent.RegisterRequest) (*agent.RegisterResponse, error) {
 	log.Info().Msgf("RegisterAgent: agent=%s mode=%s", req.Token, req.Mode)
-	return &agent.RegisterResponse{Ok: true, AssignedSubdomain: "test1"}, nil
+	return &agent.RegisterResponse{Ok: true, AssignedSubdomain: cuid.Slug()}, nil
 }
 
 func (c *Controller) Heartbeat(ctx context.Context, hb *agent.HeartbeatRequest) (*agent.HeartbeatResponse, error) {

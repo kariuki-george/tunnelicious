@@ -12,7 +12,8 @@ import (
 )
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	tunnelId := extractSubDomain(r.Host)
+
+	tunnelId := getSubdomain(r)
 
 	tunnel, ok := p.tunnels[tunnelId]
 
@@ -67,13 +68,28 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		log.Warn().Err(err).Msg("client disconnected before full response")
 	}
-	return
+
 }
 
-func extractSubDomain(host string) string {
+func getSubdomain(r *http.Request) string {
+
+	host := r.Header.Get("Host")
+	if host == "" {
+		host = r.Host
+	}
+
+	// Remove port if present
+	if idx := strings.Index(host, ":"); idx != -1 {
+		host = host[:idx]
+	}
+
+	// Extract subdomain from *.tunnel.domain.com
+	// Example: agent1.tunnel.domain.com -> agent1
 	parts := strings.Split(host, ".")
-	if len(parts) > 2 {
+	if len(parts) >= 2 {
+		// First part is the wildcard subdomain
 		return parts[0]
 	}
+
 	return ""
 }
