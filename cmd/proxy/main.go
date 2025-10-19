@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/caarlos0/env/v11"
 	agent "github.com/kariuki-george/tunnelicious/gen/proto"
 	"github.com/kariuki-george/tunnelicious/internal/control"
 	"github.com/kariuki-george/tunnelicious/internal/proxy"
@@ -16,10 +17,18 @@ import (
 func main() {
 	log.Info().Msg("starting proxy")
 
+	var cfg control.Config
+
+	err := env.Parse(&cfg)
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to load env")
+	}
+
 	s := grpc.NewServer()
 	proxy := proxy.NewProxy()
 
-	ctrl := control.NewController(nil)
+	ctrl := control.NewController(&cfg)
 
 	agent.RegisterProxyServer(s, proxy)
 	agent.RegisterControlServer(s, ctrl)
@@ -46,7 +55,7 @@ func main() {
 
 	log.Info().Msg("proxy listening on :20420")
 
-	err := http.ListenAndServe(":20420", h2cHandler)
+	err = http.ListenAndServe(":20420", h2cHandler)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to serve proxy")
 	}
