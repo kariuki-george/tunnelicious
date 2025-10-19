@@ -15,6 +15,12 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	tunnelId := getSubdomain(r)
 
+	if tunnelId == "" {
+		http.Error(w, "no active tunnel", http.StatusNotFound)
+		return
+	}
+	log.Info().Msg(tunnelId)
+
 	tunnel, ok := p.tunnels[tunnelId]
 
 	if !ok {

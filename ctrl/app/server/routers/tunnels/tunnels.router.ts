@@ -3,6 +3,27 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../../trpc";
 import prisma from "@/lib/prisma";
 import { InternalError, wrapErrors } from "../../core/errors";
+import { init } from "@paralleldrive/cuid2"
+import os from "os"
+import crypto from "crypto"
+
+
+export function getRuntimeFingerprint() {
+  const hostname = os.hostname() // ephemeral but unique to that instance
+  const data = `${hostname}-${process.pid}-${Date.now()}`
+  return crypto.createHash("md5").update(data).digest("hex")
+}
+
+const createId = init({
+  // A custom random function with the same API as Math.random.
+  // You can use this to pass a cryptographically secure random function.
+  random: Math.random,
+  // the length of the id
+  length: 8,
+  // A custom fingerprint for the host environment. This is used to help
+  // prevent collisions when generating ids in a distributed system.
+  fingerprint: getRuntimeFingerprint(),
+});
 
 export const tunnelRouter = router({
   list: protectedProcedure.query(
@@ -34,6 +55,7 @@ export const tunnelRouter = router({
             userId,
             name: input.name,
             apiKey,
+            id: createId()
           },
         });
         return tunnel;

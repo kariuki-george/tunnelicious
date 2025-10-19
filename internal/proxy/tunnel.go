@@ -3,6 +3,7 @@ package proxy
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	proxy "github.com/kariuki-george/tunnelicious/gen/proto"
 	"github.com/rs/zerolog/log"
@@ -15,10 +16,10 @@ type Tunnel interface {
 }
 
 type tunnel struct {
-	id        string
-	stream    proxy.Proxy_TunnelServer
-	sendMu    sync.Mutex
-	recvMu    sync.Mutex
+	id     string
+	stream proxy.Proxy_TunnelServer
+	sendMu sync.Mutex
+
 	responses map[string]chan *proxy.StreamChunk
 	closed    chan struct{}
 }
@@ -31,7 +32,13 @@ func newTunnel(id string, ps proxy.Proxy_TunnelServer) *tunnel {
 		closed:    make(chan struct{}),
 	}
 	go s.listen()
+	go s.lifetimeLimiter()
 	return s
+}
+
+func (t *tunnel) lifetimeLimiter() {
+	time.Sleep(time.Minute * 10)
+	t.Close()
 }
 
 func (t *tunnel) listen() {

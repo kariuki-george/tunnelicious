@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	proxy "github.com/kariuki-george/tunnelicious/gen/proto"
@@ -20,6 +21,17 @@ func NewProxy() *Proxy {
 }
 
 func (p *Proxy) Connect(ctx context.Context, agent *proxy.ConnectRequest) (*proxy.ConnectResponse, error) {
+
+	if len(p.tunnels) > 20 {
+		// limit number of tunnels
+		return &proxy.ConnectResponse{Ok: false}, fmt.Errorf("proxy tunnel count limit reached")
+	}
+
+	_, ok := p.tunnels[agent.Subdomain]
+
+	if ok {
+		return &proxy.ConnectResponse{Ok: false}, fmt.Errorf("%s tunnel is already open", agent.Subdomain)
+	}
 
 	return &proxy.ConnectResponse{Ok: true}, nil
 }

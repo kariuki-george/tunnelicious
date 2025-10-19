@@ -132,7 +132,7 @@ model Passkey {
 
 
 model Tunnels {
-  id        String   @id @default(nanoid(8))
+  id        String   @id
   userId    String
   name      String
   apiKey    String   @unique
