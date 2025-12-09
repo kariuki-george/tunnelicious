@@ -2,10 +2,10 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { openAPI } from "better-auth/plugins";
-import { passkey } from "better-auth/plugins/passkey";
 import { env } from "@/env";
 import { emailVerification, resetPassword } from "./emails/content";
 import prisma from "./prisma";
+import { passkey } from "@better-auth/passkey";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {

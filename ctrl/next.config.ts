@@ -64,10 +64,10 @@ const nextConfig: NextConfig = {
     ];
   },
   turbopack: {},
-  eslint: {
-    ignoreDuringBuilds: true,
-    // dirs: ["app", "components", "pages", "lib", "hooks"], // Only run ESLint on the 'pages' and 'utils' directories during production builds (next build)
-  },
+  // eslint: {
+  //   ignoreDuringBuilds: true,
+  //   // dirs: ["app", "components", "pages", "lib", "hooks"], // Only run ESLint on the 'pages' and 'utils' directories during production builds (next build)
+  // },
 };
 
 export default withSentryConfig(nextConfig, {
