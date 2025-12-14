@@ -22,6 +22,7 @@ type tunnel struct {
 
 	responses map[string]chan *proxy.StreamChunk
 	closed    chan struct{}
+	closeOnce sync.Once
 }
 
 func newTunnel(id string, ps proxy.Proxy_TunnelServer) *tunnel {
@@ -42,11 +43,14 @@ func (t *tunnel) lifetimeLimiter() {
 }
 
 func (t *tunnel) listen() {
+
 	for {
+
 		chunk, err := t.stream.Recv()
 
 		if err != nil {
 			log.Info().Str("agent_id", t.id).Msg("agent disconnected")
+			t.Close()
 			return
 		}
 
@@ -91,6 +95,8 @@ func (t *tunnel) Receive(streamId string) ([]byte, error) {
 }
 
 func (t *tunnel) Close() error {
-	close(t.closed)
+
+	t.closeOnce.Do(func() { close(t.closed) })
+
 	return nil
 }
